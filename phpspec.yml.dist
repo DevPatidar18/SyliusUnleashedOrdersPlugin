@@ -1,0 +1,4 @@
+suites:
+    main:
+        namespace: ForgeLabsUk\SyliusUnleashedOrdersPlugin
+        psr4_prefix: ForgeLabsUk\SyliusUnleashedOrdersPlugin
