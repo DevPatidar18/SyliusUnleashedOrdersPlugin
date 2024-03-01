@@ -11,3 +11,8 @@ acme_sylius_example_dynamic_welcome:
     defaults:
         _controller: ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\GreetingController::dynamicallyGreetAction
         name: ~
+
+forge_labs_uk_sylius_unleashed_orders_plugin_order_controller:
+    path: /api/orders
+    controller: ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\SyliusOrderToUnleashedController::SyliusOrdersToUnleashedAction
+    methods: [GET, POST]
