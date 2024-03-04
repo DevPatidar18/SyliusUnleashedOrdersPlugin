@@ -1,0 +1,242 @@
+{% extends '@SyliusAdmin/layout.html.twig' %}
+{% block content %}
+    <div class="sylius-grid-wrapper">
+        <div class="ui stackable two column grid">
+            <div class="column">
+                <h1 class="ui header">
+                    <i class="circular lock icon"></i>
+                    <div class="content">
+                        Scheduler Command
+                        <div class="sub header">Process your Scheduler Command</div>
+                    </div>
+                </h1>
+                <div class="ui breadcrumb">
+                    <a href="/admin/" class="section">Administration</a>
+                    <i class="right chevron icon divider"></i>
+                    <div class="active section">Scheduler Command</div>
+                </div>
+            </div>
+            <div class="middle aligned column">
+                <div class="ui right floated buttons">
+                    <button class="ui labeled icon button  primary " onclick="showSyncIndividualProductModal()" style="margin-right: 10px">
+                        <i class="icon refresh"></i>
+                        Sync Individual Product
+                    </button>
+                    <a class="ui labeled icon button  primary " style="margin-right: 124px" href="{{ path('forge_labs_uk_sylius_unleashed_products_plugin_sync_price') }}">
+                        <i class="icon refresh"></i>
+                        Sync Price (all product)
+                    </a>
+                    <a class="ui labeled icon button  primary " href="{{ path('forge_labs_uk_sylius_unleashed_products_plugin_command_create') }}">
+                        <i class="icon plus"></i>
+                        Create
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% if commands is empty %}
+            <div class="ui icon info message">
+                <i class="info circle icon"></i>
+                <div class="content">
+                    <div class="header">
+                        Info
+                    </div>
+                    <p>There are no results to display</p>
+                </div>
+            </div>
+        {% else %}
+            {% if ordersstatus == 0 %}
+            {% else %}
+            <div class="ui icon info message yellow">
+                <i class="info circle icon"></i>
+                <div class="content">
+                    <div class="header">
+                        Available to synchronize
+                    </div>
+                    <p>{{ ordersstatus }}</p>
+                    <p>Please use <code><b>forgelabsuk:unleashed:submit-orders</b></code> command for uploading sylius orders to Unleashed.</p>
+                </div>
+            </div>
+            {% endif %}
+            <div class="ui segment spaceless sylius-grid-table-wrapper">
+                <table class="ui sortable stackable very basic celled table">
+                    <thead>
+                    <tr>
+                        <th class="sylius-table-column-date">
+                            Name<i class="icon"></i>
+                        </th>
+                        <th class="sylius-table-column-date">
+                            Command<i class="icon"></i>
+                        </th>
+                        <th class="sylius-table-column-date">
+                            Priority<i class="icon"></i>
+                        </th>
+                        <th class="sylius-table-column-date">
+                            Enabled<i class="icon"></i>
+                        </th>
+                        <th class="sylius-table-column-actions">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for i in commands %}
+                        <tr class="item">
+                            <td>{{ i.name }}</td>
+                            <td>{{i.command}}
+                            </td>
+                            <td>
+                                <strong>{{ i.priority }}</strong>
+                            </td>
+                            <td>
+                                {% if i.enabled == 1 %}
+                                    <span class="ui teal label">
+                  <i class="checkmark icon"></i>
+                  Enabled
+                  </span>
+                                {% else %}
+                                    <span class="ui red label">
+                  <i class="remove icon"></i>
+                  Disabled
+                  </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="ui buttons">
+                                    {% if i.enabled == 1 %}
+                                        <a id="execute-immediately-btn-{{ i.id }}" class="ui labeled icon button blue" href="{{ path('forge_labs_uk_sylius_unleashed_products_plugin_command_execute_cron',{'id':i.id}) }}" onclick="executeImmediately(event, {{ i.id }})">
+                                            <i id="refresh-icon-{{ i.id }}" class="icon refresh"></i>
+                                            Execute Immediately
+                                        </a>
+
+                                    {% else %}
+                                        <button class="ui labeled icon button blue" disabled>
+                                            <i class="icon refresh"></i>
+                                            Execute Immediately
+                                        </button>
+                                    {% endif %}
+                                    <a class="ui labeled icon button green" href="{{ path('forge_labs_uk_sylius_unleashed_products_plugin_command_update', {'id': i.id})   }}">
+                                        <i class="icon pencil"></i>
+                                        Edit
+                                    </a>
+                                    <a class="ui labeled icon button red" onclick="showConfirmationModal({{ i.id }})">
+                                        <i class="icon delete"></i>
+                                        Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+    <style>
+        #sync-product-individual{
+            width: 100%;
+            font-family: 'Lato', 'Helvetica Neue', Arial, Helvetica, sans-serif;
+            margin: 0em;
+            outline: none;
+            -webkit-appearance: none;
+            line-height: 1.21428571em;
+            padding: 0.67857143em 1em;
+            font-size: 1em;
+            background: #FFFFFF;
+            border: 1px solid rgba(34, 36, 38, 0.15);
+            color: rgba(0, 0, 0, 0.87);
+            border-radius: 0.28571429rem;
+            box-shadow: 0em 0em 0em 0em transparent inset;
+            transition: color 0.1s ease, border-color 0.1s ease;
+        }
+        /* Define the CSS animation for rotating the refresh icon */
+        @keyframes rotateRefresh {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Apply the animation to the icon when the 'rotate' class is added */
+        .rotate {
+            animation: rotateRefresh 1s infinite linear;
+        }
+    </style>
+    <div class="ui dimmer modals page transition hidden">
+        <div class="ui small basic modal scrolling transition hidden" id="sync-individual-product">
+            <div class="ui icon header">
+                <i class="icon refresh"></i>
+                Sync Individual Product using GUID
+            </div>
+            <div class="content">
+                <form method="post" action="{{ path('forge_labs_uk_sylius_unleashed_products_plugin_sync_individual_product') }}">
+                    <div class="field">
+                        <input type="text" id="sync-product-individual" placeholder="e.g  3617a605-1eb6-4ce5-b4de-9ca36fb18573" name="product-guid" required="required" class="your-input-class">
+                    </div>
+                </form>
+            </div>
+            <div class="actions">
+                <div class="ui red basic cancel inverted button">
+                    <i class="remove icon"></i>
+                    No
+                </div>
+                <button class="ui green ok inverted button" type="submit">
+                    <i class="checkmark icon"></i>
+                    Yes
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="ui dimmer modals page transition hidden">
+        <div class="ui small basic modal transition hidden" id="confirmation-modal">
+            <div class="ui icon header">
+                <i class="warning sign icon"></i>
+                Confirm your action
+            </div>
+            <div class="content">
+                <p>Are you sure you want to perform this action?</p>
+            </div>
+            <div class="actions">
+                <div class="ui red basic cancel inverted button">
+                    <i class="remove icon"></i>
+                    No
+                </div>
+                <a class="ui green ok inverted button" id="confirmation-modal-button">
+                    <i class="checkmark icon"></i>
+                    Yes
+                </a>
+            </div>
+        </div>
+    </div>
+    <script>
+        function showSyncIndividualProductModal(){
+            $('#sync-individual-product').modal('show');
+        }
+        function showConfirmationModal(id) {
+            $('#confirmation-modal-button').attr('href', '/admin/command/delete/' + id);
+            $('#confirmation-modal').modal('show');
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            var yesButton = document.querySelector('.ui.green.ok.inverted.button');
+            var form = document.querySelector('#sync-individual-product form');
+
+            yesButton.addEventListener('click', function() {
+                form.submit();
+            });
+        });
+
+        function executeImmediately(event, id) {
+            event.preventDefault(); // Prevent the default behavior of the link
+            var button = document.getElementById('execute-immediately-btn-' + id);
+            var icon = document.getElementById('refresh-icon-' + id);
+
+            // Add the 'rotate' class to the icon to trigger the rotation animation
+            icon.classList.add('rotate');
+
+            // Optionally, you can remove the 'rotate' class and navigate after a certain time
+            setTimeout(function() {
+                icon.classList.remove('rotate');
+                window.location.href = button.getAttribute('href'); // Navigate to the specified URL
+            }, 1000); // Change 1000 to the desired duration of the rotation animation in milliseconds
+        }
+    </script>
+{% endblock %}

@@ -9,4 +9,5 @@ class OrderStateEnum
     public const FINISHED = 'finished';
     public const ERROR = 'error';
     public const TERMINATION = 'termination';
+    public const SENT = 'Sent';
 }

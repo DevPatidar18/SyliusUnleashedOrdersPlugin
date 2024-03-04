@@ -1,1 +1,5 @@
 # Define your own admin routes here
+forge_labs_uk_sylius_unleashed_orders_plugin_command_grid:
+    path: /command/grid
+    defaults:
+        _controller: ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\CronManagerController::CommandGridAction

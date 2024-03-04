@@ -3,19 +3,25 @@ namespace ForgeLabsUk\SyliusUnleashedOrdersPlugin\Service;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Doctrine\ORM\EntityManagerInterface;
+use ForgeLabsUk\SyliusUnleashedOrdersPlugin\Enum\OrderStateEnum;
 
 class UnleashedApiService
 {
     private $orderRepository;
+    private $entityManager;
     private $api;
     private $apiId;
     private $apiKey;
-    public function __construct(OrderRepositoryInterface $orderRepository,string $api = null, ?string $apiId = null, ?string $apiKey = null)
+
+    public function __construct(OrderRepositoryInterface $orderRepository,EntityManagerInterface $entityManager, string $api = null, ?string $apiId = null, ?string $apiKey = null)
     {
         $this->orderRepository = $orderRepository;
+        $this->entityManager = $entityManager;
         $this->api = $_ENV['UNLEASHED_API_URL'];
         $this->apiId = $_ENV['UNLEASHED_API_ID'] ?? null;
         $this->apiKey = $_ENV['UNLEASHED_API_KEY'] ?? null;
+
     }
     public function getSignature($request, $key)
     {
@@ -54,10 +60,8 @@ class UnleashedApiService
             error_log('Error: ' . $e->getMessage());
         }
     }
-
     public function post($id, $key, $endpoint, $format, $dataId, $data)
     {
-
         if (!isset($dataId, $data)) {
             return null;
         }
@@ -77,162 +81,125 @@ class UnleashedApiService
     {
         return json_decode($this->get($id, $key, $endpoint, $request, "json"));
     }
-    function postJson($id, $key, $endpoint, $dataId, $data) {
+    function postJson($id, $key, $endpoint, $dataId, $data)
+    {
         return $this->post($id, $key, $endpoint, "json", $dataId, json_encode($data));
     }
-
     public function getSyliusOrders(): Response
     {
-        // Skip GUIDs for orders already processed
-        $skipGuids = ['5d006b63-268a-423a-9645-4390a81ae97a', '995c7e00-2345-4925-8b7c-0d62ad30c859','0838f999-c326-4ef8-910b-8d05033d6ea4','139b7d9b-96bd-4a83-95f7-97da26de19cc','ea8de568-b2c9-4734-a578-8747e63bb402'];
-
-        $builder = $this->orderRepository->createQueryBuilder('o')
+        $responses = [];
+        $orders = $this->orderRepository->createQueryBuilder('o')
             ->where('o.guid != :emptyGuid')
-            ->setParameter('emptyGuid', '');
+            ->andWhere('o.unleashedStatus = :pendingStatus')
+            ->setParameter('emptyGuid', '')
+            ->setParameter('pendingStatus', 'Pending')
+            ->getQuery()
+            ->getResult();
 
-        foreach ($skipGuids as $index => $skipGuid) {
-            $builder->andWhere("o.guid != :skipGuid{$index}")
-                ->setParameter("skipGuid{$index}", $skipGuid);
+        if(empty($orders)){
+            $responses[] = ['success' => 'Not orders found'];
         }
-
-        $orders = $builder->getQuery()->getResult();
 
         $ordersData = [];
-
-        $unleashedOrders = $this->getJson($this->apiId, $this->apiKey, "SalesOrders", "");
-
-        if (isset($unleashedOrders->Items)) {
-            $existingOrderGuids = array_column($unleashedOrders->Items, 'Guid');
-        } else {
-            $existingOrderGuids = [];
-        }
         $linenumber = 0;
-
         foreach ($orders as $order) {
 
-            // Check if the order GUID is not in the existing order GUIDs
-            if (in_array($order->getGuid(), $existingOrderGuids)) {
-                // Iterate over each item in the order
-
-                foreach ($order->getItems() as $orderItem) {
-                    $product = $orderItem->getVariant()->getProduct();
-                    $unitPrice = number_format($orderItem->getUnitPrice() / 100, 2, '.', '');
-                    $lineTotal = $orderItem->getTotal() / 100;
-
-
-                    $orderData = [
-                        "SalesOrderLines" => [
-                            [
-                                "LineNumber" => ++$linenumber,
-                                "Product" => [
-                                    "Guid" => $order->getGuid(),
-                                    "ProductCode" => $product->getCode()
-                                ],
-                                "OrderQuantity" => $orderItem->getQuantity(),
-                                "UnitPrice" => floatval($unitPrice),
-                                "LineTotal" => floatval($lineTotal),
-                                "TaxRate" => 0.002,
-                                "LineTax" => $orderItem->getTaxTotal() / 100,
-                                "XeroTaxCode" => "V.A.T.",
-                                "Guid" => $order->getGuid(),
-                                "SerialNumbers" => [
-                                    [
-                                        "Identifier" => "9"
-                                    ]
-                                ],
-                                "BatchNumbers" => [
-                                    [
-                                        "Number" => $order->getNumber(),
-                                        "Quantity" => $orderItem->getQuantity(),
-                                    ]
-                                ]
-                            ]
-                        ],
-                        "OrderNumber" => 'SO-'.$order->getNumber(),
-                        "OrderDate" => $order->getCreatedAt()->format('Y-m-d'),
-                        "RequiredDate" => $order->getCreatedAt()->format('Y-m-d'),
-                        "OrderStatus" => 'Parked',
-                        "Customer" => [
-                            "CustomerCode" => "EMWAR",
-                            "CustomerName" => "Emmanuel's Discount Warehouse"
-                        ],
-                        "DeliveryInstruction" => $order->getNotes(),
-                        "Currency" => [
-                            "CurrencyCode" => $order->getCurrencyCode(),
-                            "Guid" => $order->getGuid()
-                        ],
-                        "ExchangeRate" => 0.989200,
-                        "Tax" => [
-                            "TaxCode" => "V.A.T.",
-                            "TaxRate" => 0.002
-                        ],
-                        "TaxRate" => 0.002,
-                        "XeroTaxCode" => "V.A.T.",
-                        "SubTotal" => $order->getItemsTotal() / 100,
-                        "TaxTotal" => $order->getTaxTotal() / 100,
-                        "Total" => ($order->getItemsTotal() + $order->getTaxTotal()) / 100,
-                        "Guid" => $order->getGuid()
-                    ];
-                    $ordersData[] = $orderData;
-                }
-
+            $orderData = [
+                "OrderNumber" => 'SO-' . $order->getNumber(),
+                "OrderDate" => $order->getCreatedAt()->format('Y-m-d'),
+                "RequiredDate" => $order->getCreatedAt()->format('Y-m-d'),
+                "OrderStatus" => 'Parked',
+                "Customer" => [
+                    "CustomerCode" => "EMWAR",
+                    "CustomerName" => "Emmanuel's Discount Warehouse"
+                ],
+                "DeliveryInstruction" => $order->getNotes(),
+                "Currency" => [
+                    "CurrencyCode" => $order->getCurrencyCode(),
+                    "Guid" => $order->getGuid()
+                ],
+                "ExchangeRate" => 0.989200,
+                "Tax" => [
+                    "TaxCode" => "V.A.T.",
+                    "TaxRate" => 0.002
+                ],
+                'DeliveryContact' => [
+                   "EmailAddress"=>$order->getCustomer()->getEmail(),
+                   "FirstName"=>$order->getShippingAddress()->getFirstName() ,
+                   "LastName"=>$order->getShippingAddress()->getLastName() ,
+                   "MobilePhone"=>"" ,
+                   "OfficePhone"=>"" ,
+                   "PhoneNumber"=>$order->getShippingAddress()->getPhoneNumber() ,
+                ],
+                "TaxRate" => 0.002,
+                "XeroTaxCode" => "V.A.T.",
+                "SubTotal" => $order->getItemsTotal() / 100,
+                "TaxTotal" => $order->getTaxTotal() / 100,
+                "Total" => ($order->getItemsTotal() + $order->getTaxTotal()) / 100,
+                "Guid" => $order->getGuid()
+            ];
+            foreach ($order->getItems() as $orderItem) {
+                $product = $orderItem->getVariant()->getProduct();
+                $unitPrice = number_format($orderItem->getUnitPrice() / 100, 2, '.', '');
+                $lineTotal = $orderItem->getTotal() / 100;
+                $SalesOrderLines = [
+                    "LineNumber" => ++$linenumber,
+                    "Product" => [
+                        "Guid" => $product->getGuid(),
+                        "ProductCode" => $product->getCode()
+                    ],
+                    "OrderQuantity" => $orderItem->getQuantity(),
+                    "UnitPrice" => floatval($unitPrice),
+                    "LineTotal" => floatval($lineTotal),
+                    "TaxRate" => 0.002,
+                    "LineTax" => $orderItem->getTaxTotal() / 100,
+                    "XeroTaxCode" => "V.A.T.",
+                    "Guid" => $this->generateGuid(),
+                    "SerialNumbers" => [
+                        [
+                            "Identifier" => "9"
+                        ]
+                    ],
+                    "BatchNumbers" => [
+                        [
+                            "Number" => $order->getNumber(),
+                            "Quantity" => $orderItem->getQuantity(),
+                        ]
+                    ]
+                ];
+                $orderData['SalesOrderLines'][] = $SalesOrderLines;
             }
-        }
-
-        try {
-            $responses = [];
-
-            foreach ($ordersData as &$orderData) {
+            $ordersData[] = $orderData;
+            foreach ($ordersData as $orderData) {
                 $subtotal = 0;
-
-                foreach ($orderData['SalesOrderLines'] as $line) {
-                    $lineTotal = $line['OrderQuantity'] * $line['UnitPrice'];
-                    $subtotal += $lineTotal;
-                }
-
-                $taxTotal = $orderData['TaxTotal'];
-                $invoiceTotal = $subtotal + $taxTotal;
-                $orderData['SubTotal'] = $subtotal;
-                $orderData['Total'] = $invoiceTotal;
-
-//                $response = $this->postJson($this->apiId, $this->apiKey, 'SalesOrders', $orderData['Guid'], $orderData);
+                $response = $this->postJson($this->apiId, $this->apiKey, 'SalesOrders', $orderData['Guid'], $orderData);
                 $responseData = json_decode($response, true);
-
-                if ($responseData && isset($responseData['Items'])) {
+                $orderId = $order->getId();
+                $order = $this->orderRepository->find($orderId);
+                if($order){
+                    $order->setUnleashedStatus(OrderStateEnum::SENT);
+                    $this->entityManager->persist($order);
+                    $this->entityManager->flush();
+                }
+                if (isset($responseData['Items'])) {
                     $responses[] = $responseData['Items'][0]['Description'];
+
                 } else {
-                    $responses[] = ['error' => 'Invalid or missing response'];
+                    $responses[] = ['success' => 'Order are successfuly uploaded in unleashed'];
                 }
             }
-
-            return new JsonResponse($responses);
-        } catch (\Exception $e) {
-            throw new \RuntimeException('Failed to post JSON to Unleashed: ' . $e->getMessage());
         }
+        return new JsonResponse($responses);
+
     }
-
-
-
-    function generateGuid(): string
+    function generateGuid()
     {
-        // Generate a random hexadecimal number (8 characters)
-        $part1 = bin2hex(random_bytes(4)); // 4 bytes = 8 hexadecimal characters
-
-        // Generate three random hexadecimal numbers (each 4 characters)
-        $part2 = bin2hex(random_bytes(2)); // 2 bytes = 4 hexadecimal characters
+        $part1 = bin2hex(random_bytes(4));
+        $part2 = bin2hex(random_bytes(2));
         $part3 = bin2hex(random_bytes(2));
         $part4 = bin2hex(random_bytes(2));
-
-        // Generate a random hexadecimal number (12 characters)
-        $part5 = bin2hex(random_bytes(6)); // 6 bytes = 12 hexadecimal characters
-
-        // Concatenate parts with dashes
+        $part5 = bin2hex(random_bytes(6));
         $guid = sprintf('%s-%s-%s-%s-%s', $part1, $part2, $part3, $part4, $part5);
-
         return $guid;
     }
-
-
-
-
 }

@@ -8,15 +8,17 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Sylius\Bundle\ResourceBundle\Doctrine\ORM\EntityRepository;
+use ForgeLabsUk\SyliusUnleashedOrdersPlugin\Service\UnleashedApiService;
+use Symfony\Component\Console\Style\SymfonyStyle;
+
 
 class SubmitOrdersToUnleashedCommand extends Command
 {
     protected static $defaultName = 'forgelabsuk:unleashed:submit-orders';
-    private $orderRepository;
-
-    public function __construct(EntityRepository $orderRepository)
+    private $UnleashedApiService;
+    public function __construct(UnleashedApiService $unleashedApiService)
     {
-        $this->orderRepository = $orderRepository;
+        $this->UnleashedApiService = $unleashedApiService;
         parent::__construct();
     }
     protected function configure()
@@ -29,10 +31,14 @@ class SubmitOrdersToUnleashedCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 
-        $orders = $this->orderRepository->findAll();
-        foreach ($orders as $order) {
-            dd($orders);
-            // $output->writeln('Processing order number: ' . $order->getNumber());
+        $response = $this->UnleashedApiService->getSyliusOrders();
+        $data = json_decode($response->getContent(), true);
+
+        $io = new SymfonyStyle($input, $output);
+        if (isset($data[0]['success']) && $data[0]['success'] === 'Not orders found') {
+            $io->success('No orders found.');
+        } elseif (isset($data[0]['success']) && $data[0]['success'] === 'Order are successfuly uploaded in unleashed') {
+            $io->success('Orders successfully uploaded to Unleashed.');
         }
 
         return Command::SUCCESS;

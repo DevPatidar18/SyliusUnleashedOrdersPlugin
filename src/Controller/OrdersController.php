@@ -5,36 +5,26 @@ use Symfony\Component\HttpFoundation\Response;
 use Sylius\Bundle\OrderBundle\Controller\OrderController as BaseOrderController;
 use ForgeLabsUk\SyliusUnleashedOrdersPlugin\Enum\OrderStateEnum;
 use Webmozart\Assert\Assert;
+use ForgeLabsUk\SyliusUnleashedOrdersPlugin\Service\UnleashedApiService;
 
 class OrderController extends BaseOrderController
 {
+
+    private $unleashedApiService;
+
+    public function setUnleashedApiService(UnleashedApiService $unleashedApiService)
+    {
+        $this->unleashedApiService = $unleashedApiService;
+    }
+
     public function saveAction(Request $request): Response
     {
         $order = $this->getCurrentCart();
-        $items = $order->getItems();
-        $orderedProducts = [];
-        foreach ($items as $item) {
-            $product = $item->getProduct();
-            $guid = $product->getGuid();
-            $quantity = $item->getQuantity();
-            $orderedProducts[] = [
-                'product' => $product,
-                'quantity' => $quantity,
-                'guid' => $guid,
-            ];
-        }
-        $this->setGuidsToOrder($order, $orderedProducts);
+        $order->setGuid($this->generateGuid());
         $order->setUnleashedStatus(OrderStateEnum::PENDING);
         return parent::saveAction($request);
     }
-    private function setGuidsToOrder($order, $orderedProducts)
-    {
-        foreach ($orderedProducts as $orderedProduct) {
-            $guid = $orderedProduct['guid'];
-            $quantity = $orderedProduct['quantity'];
-            $order->setGuid($guid);
-        }
-    }
+
     public function thankYouAction(Request $request): Response
     {
         $configuration = $this->requestConfigurationFactory->create($this->metadata, $request);
@@ -57,5 +47,16 @@ class OrderController extends BaseOrderController
             ],
         );
     }
+    function generateGuid(): string
+    {
+        $part1 = bin2hex(random_bytes(4));
+        $part2 = bin2hex(random_bytes(2));
+        $part3 = bin2hex(random_bytes(2));
+        $part4 = bin2hex(random_bytes(2));
+        $part5 = bin2hex(random_bytes(6));
+        $guid = sprintf('%s-%s-%s-%s-%s', $part1, $part2, $part3, $part4, $part5);
+        return $guid;
+    }
+
 }
 

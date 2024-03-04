@@ -3,20 +3,28 @@
 <container xmlns="http://symfony.com/schema/dic/services" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
     <services>
         <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\GreetingController" autowire="true" autoconfigure="true" public="true" />
-        <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\OrdersController" autowire="true" autoconfigure="true" public="true" />
+        <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\CronManagerController" autowire="true" autoconfigure="true" public="true" >
+            <argument type="service" id="doctrine.orm.entity_manager" />
+            <argument type="service" id="sylius.repository.order"/>
+        </service>
+<!--        <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\OrdersController" autowire="true" autoconfigure="true" public="true" />-->
+        <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\OrdersController" autowire="true" autoconfigure="true" public="false" >
+            <argument type="service" id="forge_labs_uk.unleashed_api_service"/>
+        </service>
         <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\SyliusOrderToUnleashedController" autowire="true" autoconfigure="true" public="true" >
             <argument type="service" id="forge_labs_uk.unleashed_api_service"/>
         </service>
 
 
         <service id="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Command\SubmitOrdersToUnleashedCommand">
-            <argument type="service" id="sylius.repository.order" />
+            <argument type="service" id="forge_labs_uk.unleashed_api_service"/>
             <tag name="console.command" />
         </service>
 
         <service id="forge_labs_uk.unleashed_api_service"
                  class="ForgeLabsUk\SyliusUnleashedOrdersPlugin\Service\UnleashedApiService">
             <argument type="service" id="sylius.repository.order"/>
+            <argument type="service" id="doctrine.orm.entity_manager" />
         </service>
 
     </services>
