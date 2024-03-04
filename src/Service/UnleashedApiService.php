@@ -102,6 +102,8 @@ class UnleashedApiService
 
         $ordersData = [];
         $linenumber = 0;
+        $taxRatePercentage = 0.002;
+        $taxRateDecimal = $taxRatePercentage / 100;
         foreach ($orders as $order) {
 
             $orderData = [
@@ -121,7 +123,7 @@ class UnleashedApiService
                 "ExchangeRate" => 0.989200,
                 "Tax" => [
                     "TaxCode" => "V.A.T.",
-                    "TaxRate" => 0.002
+                    "TaxRate" => $taxRateDecimal
                 ],
                 'DeliveryContact' => [
                    "EmailAddress"=>$order->getCustomer()->getEmail(),
@@ -131,7 +133,7 @@ class UnleashedApiService
                    "OfficePhone"=>"" ,
                    "PhoneNumber"=>$order->getShippingAddress()->getPhoneNumber() ,
                 ],
-                "TaxRate" => 0.002,
+                "TaxRate" => $taxRateDecimal,
                 "XeroTaxCode" => "V.A.T.",
                 "SubTotal" => $order->getItemsTotal() / 100,
                 "TaxTotal" => $order->getTaxTotal() / 100,
@@ -151,7 +153,7 @@ class UnleashedApiService
                     "OrderQuantity" => $orderItem->getQuantity(),
                     "UnitPrice" => floatval($unitPrice),
                     "LineTotal" => floatval($lineTotal),
-                    "TaxRate" => 0.002,
+                    "TaxRate" => $taxRateDecimal,
                     "LineTax" => $orderItem->getTaxTotal() / 100,
                     "XeroTaxCode" => "V.A.T.",
                     "Guid" => $this->generateGuid(),

@@ -85,4 +85,52 @@
     ```bash
     php bin/console doctrine:migrations:migrate
     ```
-   
+
+# Adding Tax Rate of 0.002% in Unleashed Software
+
+This guide outlines the steps to add a tax rate of 0.002% in Unleashed software.
+
+## Prerequisites
+
+Before proceeding, ensure you have access to your Unleashed account with appropriate permissions to configure taxes.
+
+## Steps
+
+1. **Login to Unleashed Software**: Open your web browser and navigate to the Unleashed login page. Log in using your credentials.
+
+2. **Navigate to Tax Settings**:
+    - Once logged in, navigate to the tax settings section. This is usually found in the settings or configuration menu, depending on your user interface.
+
+3. **Add New Tax Code**:
+    - In the tax settings, look for an option to add a new tax code. This is where you'll define the tax code and rate.
+    - Click on the "Add Tax Code" or similar button to create a new tax code.
+
+4. **Enter Tax Details**:
+    - In the form that appears, enter the following details:
+        - **Tax Code**: Enter the tax code, e.g., V.A.T.
+        - **Tax Rate**: Enter the tax rate as 0.002%. Some systems may require you to enter this as a decimal, which would be 0.002.
+
+5. **Save Changes**:
+    - After entering the tax details, save the changes. This will add the new tax code with the specified rate to your Unleashed settings.
+
+6. **Verify Configuration**:
+    - Once saved, verify that the tax code and rate are correctly added. You can do this by checking the list of tax codes or performing a test transaction with the tax applied.
+
+7. **Complete**:
+    - You have successfully added a tax rate of 0.002% in Unleashed software. You can now use this tax code in your transactions.
+
+## Additional Notes
+
+- If you encounter any issues or have questions, refer to the Unleashed documentation or contact their support team for assistance.
+- Ensure that the tax rate is correctly configured and applied to your transactions to avoid any discrepancies in reporting or invoicing.
+
+## Screenshot
+
+![Tax Settings](doc/unleashed/img.png)
+
+
+## Plugin Functionality
+
+![Plugin Functionality 1](doc/functionality/img1.png)
+![Plugin Functionality 2](doc/functionality/img2.png)
+
