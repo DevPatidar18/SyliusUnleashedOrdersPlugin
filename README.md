@@ -4,119 +4,85 @@
     </a>
 </p>
 
-<h1 align="center">Plugin Skeleton</h1>
-
-<p align="center">Skeleton for starting Sylius plugins.</p>
-
-## Documentation
-
-For a comprehensive guide on Sylius Plugins development please go to Sylius documentation,
-there you will find the <a href="https://docs.sylius.com/en/latest/plugin-development-guide/index.html">Plugin Development Guide</a>, that is full of examples.
+<h1 align="center">SyliusUnleashedOrdersPlugin</h1>
 
 ## Quickstart Installation
 
 ### Traditional
 
-1. Run `composer create-project sylius/plugin-skeleton ProjectName`.
-
-2. From the plugin skeleton root directory, run the following commands:
+1. Run the following command to install the plugin via Composer:
 
     ```bash
-    $ (cd tests/Application && yarn install)
-    $ (cd tests/Application && yarn build)
-    $ (cd tests/Application && APP_ENV=test bin/console assets:install public)
-    
-    $ (cd tests/Application && APP_ENV=test bin/console doctrine:database:create)
-    $ (cd tests/Application && APP_ENV=test bin/console doctrine:schema:create)
+    composer require forgelabsuk/sylius-unleashed-orders-plugin
     ```
 
-To be able to set up a plugin's database, remember to configure you database credentials in `tests/Application/.env` and `tests/Application/.env.test`.
+2. Add the Sylius application's routing by creating the file `config/routes/unleashed_orders_plugin.yaml` with the following content:
 
-### Docker
+   ```yaml
+   forge_labs_uk_unleashed_orders_shop:
+       resource: "@ForgeLabsUkSyliusUnleashedOrdersPlugin/Resources/config/shop_routing.yml"
+       prefix: /{_locale}
+       requirements:
+           _locale: ^[a-z]{2}(?:_[A-Z]{2})?$
 
-1. Execute `docker compose up -d`
+   forge_labs_uk_sylius_unleashed_orders_admin:
+       resource: "@ForgeLabsUkSyliusUnleashedOrdersPlugin/Resources/config/admin_routing.yml"
+       prefix: /%sylius_admin.path_name%
 
-2. Initialize plugin `docker compose exec app make init`
 
-3. See your browser `open localhost`
+3. Update the code in `src/Entity/Order/Orders.php` (if this file already exists in your Sylius application):
 
-## Usage
+    ```php
+    <?php
 
-### Running plugin tests
+    declare(strict_types=1);
+    
+    namespace App\Entity\Order;
+    
+    use Doctrine\ORM\Mapping as ORM;
+    use Sylius\Component\Core\Model\Order as BaseOrder;
+    use ForgeLabsUk\SyliusUnleashedOrdersPlugin\Trait\OrderTrait;
+    
+    /**
+     * @ORM\Entity
+     * @ORM\Table(name="sylius_order")
+     */
+    #[ORM\Entity]
+    #[ORM\Table(name: 'sylius_order')]
+    class Order extends BaseOrder
+    {
+        use OrderTrait;
+    }
 
-  - PHPUnit
+    ```
+
+   Ensure you add the `use ForgeLabsUk\SyliusUnleashedOrdersPlugin\Trait\OrderTrait;` statement to import the trait and use it inside the `Product` class.
+
+4. Update the code in `config/packages/_sylius.yaml` (if this file already exists in your Sylius application):
+
+   Add or modify the following configuration under `sylius_order`:
+
+    ```yaml
+    sylius_order:
+        resources:
+            order:
+                classes:
+                    model: App\Entity\Order\Order
+                    controller: ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\OrderController
+    ```
+
+   Ensure to replace `ForgeLabsUk\SyliusUnleashedOrdersPlugin\Controller\OrderController` with the correct namespace of your order controller.
+
+
+5. Execute the Doctrine migrations diff to create a migration file:
 
     ```bash
-    vendor/bin/phpunit
+    php bin/console doctrine:migrations:diff
     ```
 
-  - PHPSpec
+6. Execute the Doctrine migrations to set up the database:
 
     ```bash
-    vendor/bin/phpspec run
+    php bin/console doctrine:migrations:migrate
     ```
-
-  - Behat (non-JS scenarios)
-
-    ```bash
-    vendor/bin/behat --strict --tags="~@javascript"
-    ```
-
-  - Behat (JS scenarios)
- 
-    1. [Install Symfony CLI command](https://symfony.com/download).
- 
-    2. Start Headless Chrome:
-    
-      ```bash
-      google-chrome-stable --enable-automation --disable-background-networking --no-default-browser-check --no-first-run --disable-popup-blocking --disable-default-apps --allow-insecure-localhost --disable-translate --disable-extensions --no-sandbox --enable-features=Metal --headless --remote-debugging-port=9222 --window-size=2880,1800 --proxy-server='direct://' --proxy-bypass-list='*' http://127.0.0.1
-      ```
-    
-    3. Install SSL certificates (only once needed) and run test application's webserver on `127.0.0.1:8080`:
-    
-      ```bash
-      symfony server:ca:install
-      APP_ENV=test symfony server:start --port=8080 --dir=tests/Application/public --daemon
-      ```
-    
-    4. Run Behat:
-    
-      ```bash
-      vendor/bin/behat --strict --tags="@javascript"
-      ```
-    
-  - Static Analysis
-  
-    - Psalm
-    
-      ```bash
-      vendor/bin/psalm
-      ```
-      
-    - PHPStan
-    
-      ```bash
-      vendor/bin/phpstan analyse -c phpstan.neon -l max src/  
-      ```
-
-  - Coding Standard
-  
-    ```bash
-    vendor/bin/ecs check
-    ```
-
-### Opening Sylius with your plugin
-
-- Using `test` environment:
-
-    ```bash
-    (cd tests/Application && APP_ENV=test bin/console sylius:fixtures:load)
-    (cd tests/Application && APP_ENV=test bin/console server:run -d public)
-    ```
-    
-- Using `dev` environment:
-
-    ```bash
-    (cd tests/Application && APP_ENV=dev bin/console sylius:fixtures:load)
-    (cd tests/Application && APP_ENV=dev bin/console server:run -d public)
-    ```
+   
